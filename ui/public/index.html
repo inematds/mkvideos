@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>mkVIDEOS — UI read-only</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">mk</span>
+          <div>
+            <strong>mkVIDEOS</strong>
+            <small id="brandVersion">…</small>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-item is-active" data-view="videos">Estúdio</button>
+          <div class="nav-sub" id="videoSubnav"></div>
+          <button class="nav-item" data-view="config">Config</button>
+        </nav>
+        <div class="sidebar-footer">
+          <span class="badge">read-only</span>
+          <small id="lastRefresh"></small>
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <h1 id="viewTitle">Estúdio</h1>
+          <div class="topbar-actions">
+            <input type="search" id="searchInput" placeholder="filtrar por nome / data…" />
+            <button id="refreshBtn" type="button">atualizar</button>
+          </div>
+        </header>
+
+        <section id="viewVideos" class="view is-active">
+          <aside class="help-banner" id="videoHelp">
+            <div class="help-title">Estúdio · como funciona</div>
+            <p>
+              Cada card é um <strong>tipo de vídeo</strong> (template) gerado pelos scripts <code>gen-*.js</code> e renderizado pelos <code>render-*.js</code>.
+              Os arquivos vêm de <code>output/videos/&lt;tipo&gt;/&lt;slug&gt;_&lt;data&gt;/</code> — onde <code>imgs/</code> são os PNGs gerados, <code>video/</code> os mp4 finais e <code>audio/</code> as narrações.
+            </p>
+            <ul class="help-list">
+              <li><strong>Clique em um card</strong> para abrir o detalhe do tipo (slugs, vídeos, imgs).</li>
+              <li><strong>Slug</strong> = um projeto/profissão dentro do tipo (ex: <code>fisioterapeuta_2026-04-23</code>).</li>
+              <li><strong>Busca</strong> filtra por nome do tipo, slug ou arquivo de vídeo.</li>
+              <li><strong>Read-only</strong>: a UI não dispara renders. Pra gerar novo vídeo, rode <code>node gen-&lt;tipo&gt;.js &lt;slug&gt;</code> no terminal.</li>
+            </ul>
+          </aside>
+          <div class="stats" id="videoStats"></div>
+          <div class="video-types" id="videoTypes"></div>
+          <div id="videoDetail" hidden></div>
+        </section>
+
+        <section id="viewConfig" class="view">
+          <div class="config-grid" id="configGrid"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="lightbox" id="lightbox" hidden>
+      <button class="lb-close" type="button" data-lb-close aria-label="fechar">×</button>
+      <button class="lb-nav lb-prev" type="button" data-lb-prev aria-label="anterior">‹</button>
+      <button class="lb-nav lb-next" type="button" data-lb-next aria-label="próxima">›</button>
+      <figure class="lb-stage">
+        <img id="lbImg" alt="" />
+        <figcaption id="lbCaption"></figcaption>
+      </figure>
+    </div>
+
+    <div class="modal" id="modal" hidden>
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <header class="modal-head">
+          <h2 id="modalTitle"></h2>
+          <button type="button" data-close>×</button>
+        </header>
+        <div class="modal-body" id="modalBody"></div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

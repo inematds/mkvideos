@@ -1,0 +1,27 @@
+{
+  "name": "mkvideos",
+  "displayName": "mkVIDEOS",
+  "version": "1.2.0",
+  "versionScheme": "v<major>.<features>.<bugs> — features e bugs são contadores independentes que só resetam quando major sobe (v1 → v2). Formato exibido: v1.00.00 (zero-padded em 2 dígitos).",
+  "description": "Factory standalone de vídeos com imagens estáticas + motion cinematográfico (ffmpeg zoompan + storytree motion grammar).",
+  "main": "render-storytree-v2.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/inematds/mkvideos.git"
+  },
+  "scripts": {
+    "ui": "node ui/server.js",
+    "check:syntax": "find . -maxdepth 3 -type f -name '*.js' -not -path './node_modules/*' -not -path './output/*' -print0 | xargs -0 -n1 node --check",
+    "happy": "node gen-storytree-happy.js",
+    "darkstory:v2": "node render-darkstory-cinematic-v2.js",
+    "criaprof": "node gen-criaprof.js",
+    "gertran": "node gen-gertran-nostalgia.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "dotenv": "^16.6.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.local
+*.log
+output/
+tmp/
+prj/
+.DS_Store
+.claude/
+
+# Mídia binária — adicionar manualmente, não versionar
+media/**/*
+!media/**/.gitkeep
+!media/**/README.md
