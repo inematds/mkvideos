@@ -1,0 +1,52 @@
+meta:
+  id: smoke-slot-only
+  version: 1
+  name: "Smoke test — só slot, sem LLM"
+  created_by: user
+  created_at: "2026-05-07"
+target:
+  catalog: ../../../config/profissoes-30.js
+  filter:
+    slug: fisioterapeuta
+format:
+  key: short_reel
+  duration_seconds: 15
+  aspect: "9:16"
+script:
+  - type: fixed
+    role: hook
+    text: "Você é {profissao_label}."
+  - type: slot
+    role: context
+    template: "Você trabalha com {classic_task}."
+visual:
+  model: flux2-klein
+  quality: fast
+  base_style: "cinematic, soft lighting, photoreal"
+  shots:
+    - role: hook
+      prompt:
+        type: slot
+        template: "{character} no {workplace}. {base_style}"
+    - role: context
+      prompt:
+        type: slot
+        template: "{character} fazendo {classic_task}. {base_style}"
+audio:
+  voice: rachel
+  music:
+    style: "uplifting"
+    source: inemavox
+  sfx: false
+hook:
+  policy: off
+  position: outro
+variation:
+  seed_strategy: profissao_hash
+  rewrite_temperature: 0.7
+  diversify_camera_moves: true
+  diversify_music: false
+llm:
+  provider: openrouter
+  model: anthropic/claude-sonnet-4.6
+  max_tokens: 200
