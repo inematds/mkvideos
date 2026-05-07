@@ -1,0 +1,63 @@
+meta:
+  id: como-usar-ia-vanguarda
+  version: 1
+  name: "Como você pode usar IA pra ficar na vanguarda"
+  created_by: user
+  created_at: "2026-05-07"
+target:
+  catalog: ../../config/profissoes-30.js
+  filter: {}
+format:
+  key: short_reel
+  duration_seconds: 35
+  aspect: "9:16"
+script:
+  - type: fixed
+    role: hook
+    text: "Você é {profissao_label}."
+  - type: slot
+    role: context
+    template: "Hoje, você ainda gasta horas com {classic_task}."
+  - type: rewrite
+    role: explanation
+    instruction: "1 frase: como {ai_application} resolve a dor de quem é {profissao_label}. Tom: prático, esperançoso."
+  - type: hook
+    role: closing
+visual:
+  model: flux2-klein
+  quality: high
+  base_style: "cinematic, soft lighting, brazilian context, photoreal"
+  shots:
+    - role: hook
+      prompt:
+        type: slot
+        template: "{character} no {workplace}. {base_style}"
+    - role: explanation
+      prompt:
+        type: slot
+        template: "{character} usando {ai_daily_tool}. {base_style}"
+    - role: closing
+      prompt:
+        type: fixed
+        text: "Brazilian professional smiling, golden hour, cinematic."
+audio:
+  voice: rachel
+  music:
+    style: "uplifting cinematic"
+    source: inemavox
+  sfx: false
+hook:
+  policy: default
+  position: outro
+  text:
+    type: rewrite
+    instruction: "Frase 12-15 palavras, empática, reconhece desafio do(a) {profissao_label} e convida aprender IA pra se manter na vanguarda."
+variation:
+  seed_strategy: profissao_hash
+  rewrite_temperature: 0.7
+  diversify_camera_moves: true
+  diversify_music: false
+llm:
+  provider: openrouter
+  model: anthropic/claude-sonnet-4.6
+  max_tokens: 200

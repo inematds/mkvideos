@@ -4,7 +4,7 @@
   "private": true,
   "main": "run.js",
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test 'tests/*.test.js'",
     "check:syntax": "find . -maxdepth 3 -name '*.js' -not -path './node_modules/*' -exec node --check {} \\;",
     "ui": "node ui/server.js"
   },
