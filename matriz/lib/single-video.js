@@ -84,17 +84,14 @@ async function generateSingle({ template, profile, batchId, reseed = false }) {
   // 3. Image gen
   updateManifest(mp, { status: 'image_generating' });
   const tImg = Date.now();
+  // quality controlada por INEMAIMG_QUALITY env var (default: fast)
+  if (template.visual.quality && !process.env.INEMAIMG_QUALITY) {
+    process.env.INEMAIMG_QUALITY = template.visual.quality;
+  }
   for (const shot of resolvedShots) {
     const out = path.join(dir, shot.image_path);
     if (fs.existsSync(out) && fs.statSync(out).size > 50000) continue;
-    await generateImage({
-      outputPath: out,
-      prompt: shot.prompt,
-      model: template.visual.model,
-      ratio: template.format.aspect,
-      seed: shot.seed_image,
-      quality: template.visual.quality || 'fast',
-    });
+    await generateImage(out, shot.prompt, template.visual.model, template.format.aspect);
   }
   const imgMs = Date.now() - tImg;
 
