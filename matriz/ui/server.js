@@ -7,6 +7,14 @@ const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(__dirname, 'public');
 const PORT = process.env.MATRIZ_UI_PORT || 5278;
 
+function safeJoin(base, file) {
+  const resolved = path.join(base, file);
+  if (!resolved.startsWith(base + path.sep) && resolved !== base) {
+    throw new Error('invalid file path');
+  }
+  return resolved;
+}
+
 function send(res, code, type, body) {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store' });
   res.end(body);
@@ -80,8 +88,8 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { file } = JSON.parse(body);
-        const src = path.join(ROOT, 'templates/inbox', file);
-        const dst = path.join(ROOT, 'templates/approved', file);
+        const src = safeJoin(path.join(ROOT, 'templates/inbox'), file);
+        const dst = safeJoin(path.join(ROOT, 'templates/approved'), file);
         fs.mkdirSync(path.dirname(dst), { recursive: true });
         fs.renameSync(src, dst);
         sendJSON(res, { ok: true });
@@ -95,12 +103,13 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { file, reason } = JSON.parse(body);
-        const src = path.join(ROOT, 'templates/inbox', file);
-        const dst = path.join(ROOT, 'templates/archive', file);
+        const src = safeJoin(path.join(ROOT, 'templates/inbox'), file);
+        const dst = safeJoin(path.join(ROOT, 'templates/archive'), file);
         fs.mkdirSync(path.dirname(dst), { recursive: true });
         fs.renameSync(src, dst);
         if (reason) {
-          fs.writeFileSync(path.join(ROOT, 'templates/archive', file.replace('.yml', '.reject.txt')), reason);
+          const rejectFile = safeJoin(path.join(ROOT, 'templates/archive'), file.replace('.yml', '.reject.txt'));
+          fs.writeFileSync(rejectFile, reason);
         }
         sendJSON(res, { ok: true });
       } catch (e) { send(res, 400, 'application/json', JSON.stringify({ error: e.message })); }

@@ -24,6 +24,25 @@ async function runBatch({ template, subset, gateMode = 'none', reseed = false, c
   fs.mkdirSync(path.dirname(summaryFile), { recursive: true });
   fs.writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
 
+  let interrupted = false;
+  const sigintHandler = () => {
+    if (interrupted) return;
+    interrupted = true;
+    console.log('\n[matriz] interrompido — salvando estado...');
+    for (const v of summary.videos) {
+      if (v.status === 'pending') v.status = 'skipped';
+    }
+    summary.totals.skipped = summary.videos.filter((v) => v.status === 'skipped').length;
+    summary.totals.failed = summary.videos.filter((v) => v.status === 'failed').length;
+    summary.ended_at = new Date().toISOString();
+    try {
+      fs.writeFileSync(summaryFile, JSON.stringify(summary, null, 2));
+    } catch (e) { /* best effort */ }
+    console.log(`[matriz] use --resume=${batchId} pra retomar.`);
+    process.exit(130);
+  };
+  process.on('SIGINT', sigintHandler);
+
   const dir = path.dirname(summaryFile);
   const stdoutLogPath = path.join(dir, `${batchId}_stdout.log`);
   const errorsLogPath = path.join(dir, `${batchId}_errors.log`);
@@ -81,6 +100,7 @@ async function runBatch({ template, subset, gateMode = 'none', reseed = false, c
   fs.writeFileSync(path.join(dir, `${batchId}_llm-usage.json`), JSON.stringify(usage, null, 2));
   stdoutLog.end();
   errorsLog.end();
+  process.removeListener('SIGINT', sigintHandler);
 
   return { batchId, summary, summaryFile };
 }
