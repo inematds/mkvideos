@@ -1,0 +1,22 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #0e0e10; color: #eee; }
+header { padding: 1rem 1.5rem; background: #1a1a1d; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a2e; }
+header h1 { margin: 0; font-size: 1.2rem; }
+header nav a { color: #8af; margin-left: 1rem; text-decoration: none; }
+header nav a:hover { text-decoration: underline; }
+main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+h2 { margin-top: 0; }
+.card { background: #1a1a1d; border: 1px solid #2a2a2e; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+.card h3 { margin-top: 0; }
+.actions { margin-top: 0.5rem; display: flex; gap: 0.5rem; }
+.actions button { padding: 0.4rem 0.8rem; border: 1px solid #444; background: #222; color: #eee; cursor: pointer; border-radius: 4px; font-size: 0.9rem; }
+.actions button:hover { background: #333; }
+pre { background: #0a0a0c; padding: 0.8rem; border-radius: 4px; max-height: 240px; overflow: auto; font-size: 0.85em; white-space: pre-wrap; word-break: break-word; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.video { background: #1a1a1d; border-radius: 8px; overflow: hidden; border: 1px solid #2a2a2e; }
+.video video { width: 100%; display: block; }
+.video .meta { padding: 0.6rem; font-size: 0.85em; }
+.status-done { color: #6c6; }
+.status-failed { color: #c66; }
+.status-pending { color: #aa6; }
+small { opacity: 0.6; font-weight: normal; }
