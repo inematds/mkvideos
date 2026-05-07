@@ -1,7 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
-const { resolveScriptBlock, resolvePromptBlock } = require('./template-resolver');
+const { resolveScriptBlock, resolvePromptBlock, resolveScriptBlockAsync, resolveHookBlock } = require('./template-resolver');
+const { callLLM } = require('./llm-client');
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { resolveSeed, deriveBlockSeed } = require('./seed-strategy');
 const { runId, runDir, manifestPath, latestPath } = require('./output-paths');
 const { initManifest, updateManifest, writeLatest, readManifest } = require('./manifest-writer');
@@ -52,11 +54,50 @@ async function generateSingle({ template, profile, batchId, reseed = false }) {
   const tStart = Date.now();
   updateManifest(mp, { status: 'resolving' });
 
-  // 1. Resolve script (fixed + slot apenas; rewrite/hook ficam pra Phase 5)
+  // 1. Resolve script (all block types: fixed, slot, rewrite, hook)
   const extras = { base_style: template.visual.base_style || '' };
-  const resolvedScript = template.script
-    .filter((b) => b.type !== 'rewrite' && b.type !== 'hook')
-    .map((b) => resolveScriptBlock(b, profile, extras));
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  const llmCalls = [];
+
+  const llmFn = async (args) => {
+    const r = await callLLM(args);
+    llmCalls.push({
+      block_role: args._role || 'unknown',
+      model: args.model,
+      temperature: args.temperature,
+      prompt: args.prompt,
+      response_text: r.text,
+      tokens_in: r.tokens_in,
+      tokens_out: r.tokens_out,
+      duration_ms: r.duration_ms,
+    });
+    return r;
+  };
+
+  const resolvedScript = [];
+  for (const block of template.script) {
+    if (block.type === 'hook') {
+      const hookResolved = await resolveHookBlock(template, profile, extras, {
+        llmFn: (a) => llmFn({ ...a, _role: 'hook' }),
+        llmCfg: template.llm,
+        apiKey,
+        temperature: template.variation.rewrite_temperature,
+        seed: deriveBlockSeed(seedValue, 'hook'),
+      });
+      if (hookResolved) {
+        resolvedScript.push({ type: 'hook', role: block.role, text: hookResolved.text });
+      }
+    } else {
+      const r = await resolveScriptBlockAsync(block, profile, extras, {
+        llmFn: (a) => llmFn({ ...a, _role: block.role }),
+        llmCfg: template.llm,
+        apiKey,
+        temperature: template.variation.rewrite_temperature,
+        seed: deriveBlockSeed(seedValue, block.role),
+      });
+      resolvedScript.push(r);
+    }
+  }
 
   // 2. Resolve visual prompts
   const resolvedShots = template.visual.shots.map((s, i) => ({
@@ -74,6 +115,7 @@ async function generateSingle({ template, profile, batchId, reseed = false }) {
 
   updateManifest(mp, {
     status: 'resolved',
+    llm_calls: llmCalls,
     resolved: {
       script: resolvedScript,
       visual: { shots: resolvedShots },
@@ -149,6 +191,7 @@ async function generateSingle({ template, profile, batchId, reseed = false }) {
   const stat = fs.statSync(finalOut);
   updateManifest(mp, {
     status: 'done',
+    llm_calls: llmCalls,
     timings: { image_gen_ms: imgMs, render_ms: renderMs, total_ms: Date.now() - tStart },
     output: {
       video_path: 'video.mp4',
