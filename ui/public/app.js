@@ -470,7 +470,9 @@ function showImages(campaignId, kind, name) {
 }
 
 function bindEvents() {
-  $$('.nav-item').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view)));
+  $$('.nav-item').forEach((b) => b.addEventListener('click', () => { if (b.dataset.view) setView(b.dataset.view); }));
+  const matrizLink = $('#matrizLink');
+  if (matrizLink) matrizLink.href = `${window.location.protocol}//${window.location.hostname}:5278/`;
   $('#searchInput').addEventListener('input', (e) => { state.filter.search = e.target.value; renderVideoTypes(); });
   document.body.addEventListener('change', (e) => {
     if (e.target.matches('[data-vd-size]')) vdChangeSize(e.target.value);
