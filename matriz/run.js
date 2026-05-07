@@ -6,6 +6,8 @@ const { applyFilter, parseFilter } = require('./lib/filter');
 const { runBatch } = require('./lib/batch-runner');
 const { collectSlots, checkSlotIntegrity, estimateBudget } = require('./lib/preflight');
 const { pickSample } = require('./lib/gates');
+const { replayManifest } = require('./lib/replay');
+const { loadBatchSummary, failedSlugs } = require('./lib/resume');
 
 function ask(q) {
   return new Promise((res) => {
@@ -15,13 +17,14 @@ function ask(q) {
 }
 
 function parseArgs(argv) {
-  const args = { template: argv[2], filter: '', limit: undefined, gate: 'none', reseed: false, concurrency: undefined };
+  const args = { template: argv[2], filter: '', limit: undefined, gate: 'none', reseed: false, concurrency: undefined, resume: undefined };
   for (const a of argv.slice(3)) {
     if (a.startsWith('--filter=')) args.filter = a.slice(9);
     else if (a.startsWith('--limit=')) args.limit = parseInt(a.slice(8), 10);
     else if (a.startsWith('--gate=')) args.gate = a.slice(7);
     else if (a === '--reseed') args.reseed = true;
     else if (a.startsWith('--concurrency=')) args.concurrency = parseInt(a.slice(14), 10);
+    else if (a.startsWith('--resume=')) args.resume = a.slice(9);
   }
   return args;
 }
@@ -29,9 +32,17 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv);
   if (!args.template) {
-    console.error('uso: node run.js <template.yml> [--filter=k:v] [--limit=N] [--gate=sample|none] [--reseed] [--concurrency=N]');
+    console.error('uso: node run.js <template.yml | manifest.json> [--filter=k:v] [--limit=N] [--gate=sample|none] [--reseed] [--concurrency=N] [--resume=<batch_id>]');
     process.exit(1);
   }
+
+  // Detectar replay: primeiro arg termina em manifest.json
+  if (args.template.endsWith('manifest.json')) {
+    const out = await replayManifest(path.resolve(args.template));
+    console.log(`replayed: ${out}`);
+    process.exit(0);
+  }
+
   const template = loadTemplate(args.template);
   const templDir = path.dirname(path.resolve(args.template));
   const catalog = loadProfissoes(template.target.catalog, templDir);
@@ -43,10 +54,23 @@ async function main() {
     process.exit(1);
   }
 
+  // Resume: filtrar por slugs failed/pending do batch anterior
+  let resumeSubset = subset;
+  if (args.resume) {
+    const summary = loadBatchSummary(template.meta.id, args.resume);
+    const slugs = new Set(failedSlugs(summary));
+    resumeSubset = subset.filter((p) => slugs.has(p.slug));
+    console.log(`[resume] retomando ${resumeSubset.length} videos do batch ${args.resume}`);
+    if (resumeSubset.length === 0) {
+      console.log('Nenhum video failed/pending no batch. Nada a fazer.');
+      process.exit(0);
+    }
+  }
+
   // Pre-flight: slot integrity
   const slots = collectSlots(template);
-  const integrity = checkSlotIntegrity(slots, subset);
-  let runSubset = subset;
+  const integrity = checkSlotIntegrity(slots, resumeSubset);
+  let runSubset = resumeSubset;
   if (integrity.missing.length) {
     console.warn(`\n⚠ ${integrity.missing.length} profissão(ões) com slots faltantes:`);
     for (const m of integrity.missing.slice(0, 5)) console.warn(`  ${m.slug}: faltam ${m.missing_slots.join(', ')}`);
