@@ -53,4 +53,81 @@ function resolvePromptBlock(block, profile, extras = {}) {
   throw new Error(`prompt.type não suportado nesta fase: ${block.type}`);
 }
 
-module.exports = { resolveText, resolveScriptBlock, resolvePromptBlock };
+async function resolveScriptBlockAsync(block, profile, extras, opts) {
+  if (block.type === 'fixed' || block.type === 'slot') {
+    return resolveScriptBlock(block, profile, extras);
+  }
+  if (block.type === 'rewrite') {
+    const prompt = resolveText(block.instruction, profile, extras);
+    const r = await opts.llmFn({
+      provider: opts.llmCfg.provider,
+      model: opts.llmCfg.model,
+      max_tokens: opts.llmCfg.max_tokens,
+      apiKey: opts.apiKey,
+      prompt,
+      temperature: opts.temperature,
+      seed: opts.seed,
+    });
+    return {
+      type: 'rewrite',
+      role: block.role,
+      text: r.text,
+      _llm: {
+        prompt,
+        response: r.text,
+        tokens_in: r.tokens_in,
+        tokens_out: r.tokens_out,
+        duration_ms: r.duration_ms,
+        model: opts.llmCfg.model,
+        temperature: opts.temperature,
+      },
+    };
+  }
+  if (block.type === 'hook') {
+    return { type: 'hook', role: block.role, _placeholder: true };
+  }
+  throw new Error(`type desconhecido: ${block.type}`);
+}
+
+async function resolveHookBlock(template, profile, extras, opts) {
+  const h = template.hook;
+  if (!h || h.policy === 'off') return null;
+  let textBlock = h.text;
+  if (h.policy === 'override' && opts.override) textBlock = opts.override;
+  if (!textBlock) throw new Error('hook policy != off mas hook.text ausente');
+  if (textBlock.type === 'fixed') {
+    return { policy: h.policy, position: h.position, text: resolveText(textBlock.text, profile, extras) };
+  }
+  if (textBlock.type === 'slot') {
+    return { policy: h.policy, position: h.position, text: resolveText(textBlock.template, profile, extras) };
+  }
+  if (textBlock.type === 'rewrite') {
+    const prompt = resolveText(textBlock.instruction, profile, extras);
+    const r = await opts.llmFn({
+      provider: opts.llmCfg.provider,
+      model: opts.llmCfg.model,
+      max_tokens: opts.llmCfg.max_tokens,
+      apiKey: opts.apiKey,
+      prompt,
+      temperature: opts.temperature,
+      seed: opts.seed,
+    });
+    return {
+      policy: h.policy,
+      position: h.position,
+      text: r.text,
+      _llm: {
+        prompt,
+        response: r.text,
+        tokens_in: r.tokens_in,
+        tokens_out: r.tokens_out,
+        duration_ms: r.duration_ms,
+        model: opts.llmCfg.model,
+        temperature: opts.temperature,
+      },
+    };
+  }
+  throw new Error('hook.text.type desconhecido');
+}
+
+module.exports = { resolveText, resolveScriptBlock, resolvePromptBlock, resolveScriptBlockAsync, resolveHookBlock };
