@@ -16,7 +16,11 @@ function getDefaults() {
   try {
     _defaultsCache = yaml.load(fs.readFileSync(DEFAULTS_PATH, 'utf8')) || {};
   } catch (e) {
-    _defaultsCache = {};
+    if (e.code === 'ENOENT') {
+      _defaultsCache = {};
+    } else {
+      throw new Error(`Falha ao carregar defaults: ${e.message}`);
+    }
   }
   return _defaultsCache;
 }
@@ -31,7 +35,7 @@ function loadTemplate(filePath) {
     throw new Error(`Template schema inválido: ${errs}`);
   }
   obj._meta = { file_path: abs, file_sha256: sha256 };
-  obj._defaults = getDefaults();
+  obj._defaults = JSON.parse(JSON.stringify(getDefaults()));
   return obj;
 }
 
