@@ -5,6 +5,7 @@ const { loadProfissoes } = require('./lib/profissoes-loader');
 const { applyFilter, parseFilter } = require('./lib/filter');
 const { runBatch } = require('./lib/batch-runner');
 const { collectSlots, checkSlotIntegrity, estimateBudget } = require('./lib/preflight');
+const { pickSample } = require('./lib/gates');
 
 function ask(q) {
   return new Promise((res) => {
@@ -63,9 +64,17 @@ async function main() {
 
   console.log(`[matriz] template=${template.meta.id} subset=${runSubset.length}`);
 
+  let toRun = runSubset;
+  let sampleSet = null;
+  if (args.gate === 'sample') {
+    sampleSet = pickSample(runSubset, Math.min(5, runSubset.length));
+    console.log(`\n[gate=sample] gerando ${sampleSet.length} amostras primeiro: ${sampleSet.map((p) => p.slug).join(', ')}`);
+    toRun = sampleSet;
+  }
+
   const result = await runBatch({
     template,
-    subset: runSubset,
+    subset: toRun,
     gateMode: args.gate,
     reseed: args.reseed,
     concurrency: args.concurrency || 4,
@@ -77,6 +86,29 @@ async function main() {
 
   console.log(`\nBatch ${result.batchId} done — ${result.summary.totals.done} ok / ${result.summary.totals.failed} fail`);
   console.log(`Summary: ${result.summaryFile}`);
+
+  if (args.gate === 'sample' && sampleSet && result.summary.totals.failed < toRun.length) {
+    console.log(`\nAmostras geradas. Veja na UI: http://localhost:5278/batch/${template.meta.id}/${result.batchId}`);
+    const proceed = await ask('Aprovar e gerar restante? [y/N]: ');
+    if (proceed === 'y' || proceed === 's' || proceed === 'sim') {
+      const remaining = runSubset.filter((p) => !sampleSet.find((s) => s.slug === p.slug));
+      console.log(`\nGerando ${remaining.length} restantes...`);
+      const restResult = await runBatch({
+        template,
+        subset: remaining,
+        gateMode: 'sample-rest',
+        reseed: args.reseed,
+        concurrency: args.concurrency || 4,
+        onProgress: ({ idx, total, slug, status, error }) => {
+          const stamp = new Date().toISOString().slice(11, 19);
+          console.log(`[${stamp}] [${idx + 1}/${total}] ${slug} — ${status}${error ? ': ' + error : ''}`);
+        },
+      });
+      console.log(`\nLote completo: ${result.summary.totals.done + restResult.summary.totals.done} ok / ${result.summary.totals.failed + restResult.summary.totals.failed} fail`);
+    } else {
+      console.log('Lote interrompido após amostra. Use --resume com batch_id pra retomar.');
+    }
+  }
 }
 
 main();
