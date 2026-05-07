@@ -1,0 +1,16 @@
+{
+  "name": "mkvideos-matriz",
+  "version": "0.1.0",
+  "private": true,
+  "main": "run.js",
+  "scripts": {
+    "test": "node --test tests/",
+    "check:syntax": "find . -maxdepth 3 -name '*.js' -not -path './node_modules/*' -exec node --check {} \\;",
+    "ui": "node ui/server.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "ajv": "^8.12.0",
+    "dotenv": "^16.0.0"
+  }
+}
