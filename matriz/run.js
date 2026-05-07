@@ -2,16 +2,16 @@ const path = require('node:path');
 const { loadTemplate } = require('./lib/template-loader');
 const { loadProfissoes } = require('./lib/profissoes-loader');
 const { applyFilter, parseFilter } = require('./lib/filter');
-const { generateSingle } = require('./lib/single-video');
-const { runId } = require('./lib/output-paths');
+const { runBatch } = require('./lib/batch-runner');
 
 function parseArgs(argv) {
-  const args = { template: argv[2], filter: '', limit: undefined, gate: 'none', reseed: false };
+  const args = { template: argv[2], filter: '', limit: undefined, gate: 'none', reseed: false, concurrency: undefined };
   for (const a of argv.slice(3)) {
     if (a.startsWith('--filter=')) args.filter = a.slice(9);
     else if (a.startsWith('--limit=')) args.limit = parseInt(a.slice(8), 10);
     else if (a.startsWith('--gate=')) args.gate = a.slice(7);
     else if (a === '--reseed') args.reseed = true;
+    else if (a.startsWith('--concurrency=')) args.concurrency = parseInt(a.slice(14), 10);
   }
   return args;
 }
@@ -19,7 +19,7 @@ function parseArgs(argv) {
 async function main() {
   const args = parseArgs(process.argv);
   if (!args.template) {
-    console.error('uso: node run.js <template.yml> [--filter=k:v] [--limit=N] [--gate=sample|none] [--reseed]');
+    console.error('uso: node run.js <template.yml> [--filter=k:v] [--limit=N] [--gate=sample|none] [--reseed] [--concurrency=N]');
     process.exit(1);
   }
   const template = loadTemplate(args.template);
@@ -33,19 +33,22 @@ async function main() {
     process.exit(1);
   }
 
-  const batchId = runId();
-  console.log(`[matriz] template=${template.meta.id} subset=${subset.length} batch=${batchId}`);
+  console.log(`[matriz] template=${template.meta.id} subset=${subset.length}`);
 
-  for (let i = 0; i < subset.length; i += 1) {
-    const p = subset[i];
-    console.log(`[${i + 1}/${subset.length}] ${p.slug} ...`);
-    try {
-      const r = await generateSingle({ template, profile: p, batchId, reseed: args.reseed });
-      console.log(`  ✓ ${r.video}`);
-    } catch (e) {
-      console.error(`  ✗ ${p.slug}: ${e.message}`);
-    }
-  }
+  const result = await runBatch({
+    template,
+    subset,
+    gateMode: args.gate,
+    reseed: args.reseed,
+    concurrency: args.concurrency || 4,
+    onProgress: ({ idx, total, slug, status, error }) => {
+      const stamp = new Date().toISOString().slice(11, 19);
+      console.log(`[${stamp}] [${idx + 1}/${total}] ${slug} — ${status}${error ? ': ' + error : ''}`);
+    },
+  });
+
+  console.log(`\nBatch ${result.batchId} done — ${result.summary.totals.done} ok / ${result.summary.totals.failed} fail`);
+  console.log(`Summary: ${result.summaryFile}`);
 }
 
 main();
