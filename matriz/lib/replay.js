@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execSync } = require('node:child_process');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+const { withRetry } = require('./error-handler');
 const { generateImage } = require('../../pipeline/generate-image-inemaimg');
 const { buildShotVF } = require('../../lib/storytree-presets');
 const { runId, runDir, manifestPath, latestPath } = require('./output-paths');
@@ -49,7 +50,7 @@ async function replayManifest(srcManifestPath) {
   for (const shot of src.resolved.visual.shots) {
     const out = path.join(dir, shot.image_path);
     if (fs.existsSync(out) && fs.statSync(out).size > 50000) continue;
-    await generateImage(out, shot.prompt, src.resolved.visual.model || src.template.visual_model, src.resolved.format.aspect);
+    await withRetry(() => generateImage(out, shot.prompt, src.resolved.visual.model || src.template.visual_model, src.resolved.format.aspect), { attempts: 3, baseMs: 1000 });
   }
 
   updateManifest(mp, { status: 'rendering' });

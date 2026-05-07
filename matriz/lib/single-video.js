@@ -3,6 +3,7 @@ const path = require('node:path');
 const { execSync } = require('node:child_process');
 const { resolveScriptBlock, resolvePromptBlock, resolveScriptBlockAsync, resolveHookBlock } = require('./template-resolver');
 const { callLLM } = require('./llm-client');
+const { withRetry } = require('./error-handler');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { resolveSeed, deriveBlockSeed } = require('./seed-strategy');
 const { runId, runDir, manifestPath, latestPath } = require('./output-paths');
@@ -60,7 +61,7 @@ async function generateSingle({ template, profile, batchId, reseed = false }) {
   const llmCalls = [];
 
   const llmFn = async (args) => {
-    const r = await callLLM(args);
+    const r = await withRetry(() => callLLM(args), { attempts: 3, baseMs: 1000 });
     llmCalls.push({
       block_role: args._role || 'unknown',
       model: args.model,
@@ -133,7 +134,7 @@ async function generateSingle({ template, profile, batchId, reseed = false }) {
   for (const shot of resolvedShots) {
     const out = path.join(dir, shot.image_path);
     if (fs.existsSync(out) && fs.statSync(out).size > 50000) continue;
-    await generateImage(out, shot.prompt, template.visual.model, template.format.aspect);
+    await withRetry(() => generateImage(out, shot.prompt, template.visual.model, template.format.aspect), { attempts: 3, baseMs: 1000 });
   }
   const imgMs = Date.now() - tImg;
 
