@@ -1,8 +1,17 @@
 const path = require('node:path');
+const readline = require('node:readline');
 const { loadTemplate } = require('./lib/template-loader');
 const { loadProfissoes } = require('./lib/profissoes-loader');
 const { applyFilter, parseFilter } = require('./lib/filter');
 const { runBatch } = require('./lib/batch-runner');
+const { collectSlots, checkSlotIntegrity, estimateBudget } = require('./lib/preflight');
+
+function ask(q) {
+  return new Promise((res) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(q, (a) => { rl.close(); res(a.trim().toLowerCase()); });
+  });
+}
 
 function parseArgs(argv) {
   const args = { template: argv[2], filter: '', limit: undefined, gate: 'none', reseed: false, concurrency: undefined };
@@ -33,11 +42,30 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`[matriz] template=${template.meta.id} subset=${subset.length}`);
+  // Pre-flight: slot integrity
+  const slots = collectSlots(template);
+  const integrity = checkSlotIntegrity(slots, subset);
+  let runSubset = subset;
+  if (integrity.missing.length) {
+    console.warn(`\n⚠ ${integrity.missing.length} profissão(ões) com slots faltantes:`);
+    for (const m of integrity.missing.slice(0, 5)) console.warn(`  ${m.slug}: faltam ${m.missing_slots.join(', ')}`);
+    if (integrity.missing.length > 5) console.warn(`  ... +${integrity.missing.length - 5}`);
+    const ans = await ask('  [a]bortar / [s]kip-faltantes / [c]ontinuar com warning: ');
+    if (ans === 'a') process.exit(1);
+    if (ans === 's') runSubset = integrity.complete;
+  }
+
+  // Pre-flight: orçamento
+  const budget = estimateBudget(template, runSubset);
+  console.log(`\nPre-flight: ${budget.videos} vídeos | ${budget.llmCalls} chamadas LLM (~${budget.tokensEst} tokens) | ${budget.images} imagens`);
+  const go = await ask('OK? [y/N]: ');
+  if (go !== 'y' && go !== 's' && go !== 'sim') { console.log('cancelado.'); process.exit(0); }
+
+  console.log(`[matriz] template=${template.meta.id} subset=${runSubset.length}`);
 
   const result = await runBatch({
     template,
-    subset,
+    subset: runSubset,
     gateMode: args.gate,
     reseed: args.reseed,
     concurrency: args.concurrency || 4,
