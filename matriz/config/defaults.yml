@@ -1,0 +1,9 @@
+captions: true
+narration_pacing: normal
+fade_in_seconds: 0.5
+fade_out_seconds: 0.5
+codec:
+  video: libx264
+  pix_fmt: yuv420p
+  preset: fast
+concurrency: 4
